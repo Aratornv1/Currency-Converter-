@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Конвертер валют</title>
+<style>
+  :root {
+    --bg: #f3f5f4; --surface: #fff; --ink: #16201d; --muted: #5d6c67; --line: #d6dedb;
+    --accent: #0b6b57; --accent-ink: #fff; --bad: #a3282a;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1614; --surface: #17211e; --ink: #e4eeea; --muted: #93a59f; --line: #2a3733; --accent: #4fc4a6; --accent-ink: #0a1411; --bad: #f08a8c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, "Segoe UI", sans-serif; }
+  main { width: 100%; max-width: 480px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 28px 24px 20px; }
+  h1 { margin: 0 0 20px; font-size: 24px; }
+  label { display: block; margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  input, select { width: 100%; padding: 12px; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+  input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .amount { margin-bottom: 16px; }
+  .pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: end; margin-bottom: 20px; }
+  .swap { width: 44px; height: 44px; font-size: 20px; color: var(--accent); background: transparent; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+  .swap:hover { border-color: var(--accent); }
+  .result { min-height: 92px; padding: 16px; background: var(--bg); border-radius: 10px; }
+  .result .big { font-size: 28px; font-weight: 650; overflow-wrap: anywhere; }
+  .result .rate { color: var(--muted); font-size: 14px; }
+  .result.error .big { color: var(--bad); font-size: 16px; font-weight: 500; }
+  footer { margin-top: 16px; font-size: 12.5px; color: var(--muted); }
+  footer a { color: var(--accent); }
+  @media (max-width: 420px) { .pair { grid-template-columns: minmax(0, 1fr); } .swap { justify-self: center; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Конвертер валют</h1>
+
+  <div class="amount">
+    <label for="amount">Сума</label>
+    <input id="amount" type="text" inputmode="decimal" autocomplete="off" value="100">
+  </div>
+
+  <div class="pair">
+    <div>
+      <label for="from">З валюти</label>
+      <select id="from" disabled></select>
+    </div>
+    <button class="swap" id="swap" type="button" aria-label="Поміняти валюти місцями" title="Поміняти місцями">⇄</button>
+    <div>
+      <label for="to">У валюту</label>
+      <select id="to" disabled></select>
+    </div>
+  </div>
+
+  <div class="result" id="result" aria-live="polite">Завантаження валют…</div>
+
+  <footer>
+    <span id="updated"></span>
+    <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">Rates By Exchange Rate API</a>
+  </footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const amountEl = $('amount'), fromEl = $('from'), toEl = $('to'), resultEl = $('result'), updatedEl = $('updated');
+
+const names = new Intl.DisplayNames(['uk'], { type: 'currency' });
+const label = (code) => { try { return `${code} — ${names.of(code)}`; } catch { return code; } };
+const money = (value, code) => {
+  try { return new Intl.NumberFormat('uk-UA', { style: 'currency', currency: code, maximumFractionDigits: 4 }).format(value); }
+  catch { return `${value} ${code}`; }
+};
+
+function save() {
+  try { localStorage.setItem('converter', JSON.stringify({ from: fromEl.value, to: toEl.value, amount: amountEl.value })); } catch {}
+}
+function load() {
+  try { return JSON.parse(localStorage.getItem('converter')) ?? {}; } catch { return {}; }
+}
+
+function showError(message) {
+  resultEl.className = 'result error';
+  resultEl.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'big';
+  div.textContent = message;
+  resultEl.append(div);
+}
+
+let controller;
+async function convert() {
+  controller?.abort(); // відповідь на старий запит не має перекрити новішу
+  controller = new AbortController();
+  // кома як десятковий роздільник і пробіли: «1 000,5» → «1000.5»
+  const amount = amountEl.value.trim().replace(/\s/g, '').replace(',', '.');
+  if (!/^\d+(\.\d+)?$/.test(amount)) return showError('Введіть суму числом, наприклад 100 або 12.5');
+  const query = new URLSearchParams({ from: fromEl.value, to: toEl.value, amount });
+  try {
+    const res = await fetch(`/api/convert?${query}`, { signal: controller.signal });
+    const data = await res.json();
+    if (!res.ok) return showError(data.error ?? 'Не вдалося отримати курс');
+    resultEl.className = 'result';
+    resultEl.innerHTML = '';
+    const big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = `${money(data.amount, data.from)} = ${money(data.result, data.to)}`;
+    const rate = document.createElement('div');
+    rate.className = 'rate';
+    rate.textContent = `1 ${data.from} = ${data.rate} ${data.to}`;
+    resultEl.append(big, rate);
+    updatedEl.textContent = `Курси від ${new Date(data.updatedAt).toLocaleString('uk-UA')}. `;
+    save();
+  } catch (err) {
+    if (err.name !== 'AbortError') showError('Немає зв’язку із сервером');
+  }
+}
+
+let timer;
+const convertSoon = () => { clearTimeout(timer); timer = setTimeout(convert, 250); };
+
+async function init() {
+  try {
+    const res = await fetch('/api/currencies');
+    const data = await res.json();
+    if (!res.ok) return showError(data.error ?? 'Не вдалося завантажити валюти');
+    const options = data.currencies.map((code) => new Option(label(code), code));
+    for (const select of [fromEl, toEl]) {
+      select.replaceChildren(...options.map((o) => o.cloneNode(true)));
+      select.disabled = false;
+    }
+    const saved = load();
+    const has = (code) => data.currencies.includes(code);
+    fromEl.value = has(saved.from) ? saved.from : 'USD';
+    toEl.value = has(saved.to) ? saved.to : has('UAH') ? 'UAH' : 'EUR';
+    if (typeof saved.amount === 'string') amountEl.value = saved.amount;
+    convert();
+  } catch {
+    showError('Немає зв’язку із сервером');
+  }
+}
+
+amountEl.addEventListener('input', convertSoon);
+fromEl.addEventListener('change', convert);
+toEl.addEventListener('change', convert);
+$('swap').addEventListener('click', () => {
+  [fromEl.value, toEl.value] = [toEl.value, fromEl.value];
+  convert();
+});
+init();
+</script>
+</body>
+</html>
