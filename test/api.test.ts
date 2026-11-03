@@ -1,11 +1,12 @@
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
-import { createApp } from '../src/app';
-import { createRatesService } from '../src/rates';
+import { ConverterApp } from '../src/ConverterApp';
+import { RatesService } from '../src/RatesService';
 import { fakeFetch, jsonResponse, ratesBody } from './helpers';
 
 const usd = ratesBody('USD', { USD: 1, EUR: 0.9, UAH: 40 });
-const makeApp = (fetchFn: typeof fetch = fakeFetch({ USD: usd })) => createApp(createRatesService({ fetchFn }));
+const makeApp = (fetchFn: typeof fetch = fakeFetch({ USD: usd })) =>
+  new ConverterApp(RatesService.create({ fetchFn })).express;
 
 describe('GET /api/currencies', () => {
   it('повертає відсортований список кодів', async () => {
@@ -23,10 +24,11 @@ describe('GET /api/currencies', () => {
 });
 
 describe('GET /api/convert', () => {
-  it('конвертує суму', async () => {
+  it('конвертує суму; форма відповіді визначена Conversion.toJSON', async () => {
     const res = await request(makeApp()).get('/api/convert?from=USD&to=UAH&amount=12.5');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ from: 'USD', to: 'UAH', amount: 12.5, rate: 40, result: 500 });
+    expect(Object.keys(res.body)).toEqual(['from', 'to', 'amount', 'rate', 'result', 'updatedAt']);
   });
 
   it('приймає коди в нижньому регістрі та з пробілами', async () => {
@@ -36,23 +38,28 @@ describe('GET /api/convert', () => {
   });
 
   it.each([
-    ['без from', '?to=UAH&amount=1'],
-    ['без to', '?from=USD&amount=1'],
-    ['без amount', '?from=USD&to=UAH'],
-    ['порожня сума', '?from=USD&to=UAH&amount='],
-    ['довгий код', '?from=USDX&to=UAH&amount=1'],
-    ['код з цифрами', '?from=U5D&to=UAH&amount=1'],
-    ['текст замість суми', '?from=USD&to=UAH&amount=abc'],
-    ['від’ємна сума', '?from=USD&to=UAH&amount=-5'],
-    ['експоненційний запис', '?from=USD&to=UAH&amount=1e3'],
-    ['шістнадцятковий запис', '?from=USD&to=UAH&amount=0x10'],
-    ['Infinity', '?from=USD&to=UAH&amount=Infinity'],
-    ['занадто велика сума', '?from=USD&to=UAH&amount=1000000000001'],
-    ['повторений параметр', '?from=USD&from=EUR&to=UAH&amount=1'],
-  ])('400: %s', async (_name, query) => {
+    ['без from', '?to=UAH&amount=1', 'from is required'],
+    ['без to', '?from=USD&amount=1', 'to is required'],
+    ['без amount', '?from=USD&to=UAH', 'amount is required'],
+    ['порожня сума', '?from=USD&to=UAH&amount=', 'amount is required'],
+    ['довгий код', '?from=USDX&to=UAH&amount=1', 'from must be a 3-letter currency code'],
+    ['код з цифрами', '?from=U5D&to=UAH&amount=1', 'from must be a 3-letter currency code'],
+    ['текст замість суми', '?from=USD&to=UAH&amount=abc', 'amount must be a non-negative number'],
+    ['від’ємна сума', '?from=USD&to=UAH&amount=-5', 'amount must be a non-negative number'],
+    ['експоненційний запис', '?from=USD&to=UAH&amount=1e3', 'amount must be a non-negative number'],
+    ['шістнадцятковий запис', '?from=USD&to=UAH&amount=0x10', 'amount must be a non-negative number'],
+    ['Infinity', '?from=USD&to=UAH&amount=Infinity', 'amount must be a non-negative number'],
+    ['занадто велика сума', '?from=USD&to=UAH&amount=1000000000001', 'amount must not exceed 1000000000000'],
+    ['повторений параметр', '?from=USD&from=EUR&to=UAH&amount=1', 'from is required'],
+  ])('400 (ValidationError): %s', async (_name, query, message) => {
     const res = await request(makeApp()).get(`/api/convert${query}`);
     expect(res.status).toBe(400);
-    expect(res.body.error).toBeTruthy();
+    expect(res.body).toEqual({ error: message });
+  });
+
+  it('першою повертається помилка в порядку from → to → amount', async () => {
+    const res = await request(makeApp()).get('/api/convert?from=1&to=2&amount=x');
+    expect(res.body.error).toContain('from');
   });
 
   it('404 для невідомої цільової валюти', async () => {
@@ -84,5 +91,21 @@ describe('інше', () => {
     const res = await request(makeApp()).get('/');
     expect(res.status).toBe(200);
     expect(res.text).toContain('Rates By Exchange Rate API');
+  });
+
+  it('не показує заголовок x-powered-by', async () => {
+    const res = await request(makeApp()).get('/api/currencies');
+    expect(res.headers['x-powered-by']).toBeUndefined();
+  });
+
+  it('неочікувана помилка (баг) дає 500 без деталей', async () => {
+    const buggy = { listCurrencies: () => { throw new TypeError('secret detail'); } } as unknown as RatesService;
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await request(new ConverterApp(buggy).express).get('/api/currencies');
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'Internal server error' });
+    expect(JSON.stringify(res.body)).not.toContain('secret');
+    expect(spy).toHaveBeenCalledOnce();
+    spy.mockRestore();
   });
 });

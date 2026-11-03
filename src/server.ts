@@ -1,8 +1,10 @@
-import { createApp } from './app';
-import { config } from './config';
-import { getRatesService } from './rates';
+// Точка входу й composition root: тут створюються й з'єднуються реальні обʼєкти.
+import { AppConfig } from './AppConfig';
+import { ConverterApp } from './ConverterApp';
+import { RatesService } from './RatesService';
 
-const server = createApp(getRatesService()).listen(config.port, () => {
+const config = AppConfig.load();
+const server = new ConverterApp(RatesService.shared()).listen(config.port, () => {
   console.log(`Currency converter listening on http://localhost:${config.port}`);
 });
 

@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Currency Converter: розбір ООП-версії</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: sticky table of contents on the left, one reading column on the right; single column on phones. */
+:root {
+  --bg: #f6f8fa;
+  --surface: #ffffff;
+  --ink: #17212b;
+  --muted: #5b6b7a;
+  --line: #d9e1e8;
+  --accent: #0b6fa4;
+  --accent-soft: #e1f0f8;
+  --code-bg: #eef2f6;
+  --warn: #8a5a00;
+  --warn-soft: #fff3d6;
+  --good: #1a7f4b;
+  --good-soft: #def5e8;
+  --bad: #b3261e;
+  --bad-soft: #fde7e5;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1720; --surface: #17212b; --ink: #e4ebf1; --muted: #92a3b3; --line: #2a3745;
+    --accent: #5cb8e6; --accent-soft: #14303f; --code-bg: #0c141b;
+    --warn: #f0c36a; --warn-soft: #3a2f12; --good: #6fd29b; --good-soft: #12301f;
+    --bad: #ff8d84; --bad-soft: #3d1a17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1720; --surface: #17212b; --ink: #e4ebf1; --muted: #92a3b3; --line: #2a3745;
+  --accent: #5cb8e6; --accent-soft: #14303f; --code-bg: #0c141b;
+  --warn: #f0c36a; --warn-soft: #3a2f12; --good: #6fd29b; --good-soft: #12301f;
+  --bad: #ff8d84; --bad-soft: #3d1a17;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.6; }
+a { color: var(--accent); }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.shell { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; max-width: 1080px; margin: 0 auto; padding: 32px 20px 80px; }
+nav.toc { position: sticky; top: 24px; align-self: start; font-size: 14px; }
+nav.toc p { margin: 0 0 8px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; counter-reset: s; }
+nav.toc li { counter-increment: s; }
+nav.toc a { display: block; padding: 5px 10px; border-left: 2px solid var(--line); color: var(--muted); text-decoration: none; }
+nav.toc a::before { content: counter(s) ". "; font-variant-numeric: tabular-nums; }
+nav.toc a:hover { color: var(--ink); border-left-color: var(--accent); }
+
+main { min-width: 0; }
+header.top { padding-bottom: 20px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
+header.top .tag { font: 500 13px var(--font-mono); color: var(--accent); }
+h1 { margin: 6px 0 10px; font-size: 34px; line-height: 1.15; font-weight: 600; text-wrap: balance; }
+header.top p { margin: 0; max-width: 62ch; color: var(--muted); }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.chip { font: 500 12px var(--font-mono); padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+
+section { padding-top: 36px; }
+h2 { margin: 0 0 12px; font-size: 24px; line-height: 1.25; font-weight: 600; text-wrap: balance; }
+h3 { margin: 28px 0 8px; font-size: 18px; font-weight: 600; }
+p { margin: 0 0 12px; max-width: 70ch; }
+ul, ol { max-width: 70ch; padding-left: 22px; margin: 0 0 12px; }
+li { margin-bottom: 4px; }
+code { font-family: var(--font-mono); font-size: .88em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+
+.file { margin: 14px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.file > .name { display: flex; justify-content: space-between; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--line); font: 500 13px var(--font-mono); color: var(--muted); background: var(--code-bg); }
+.file > .name b { color: var(--ink); font-weight: 500; }
+pre { margin: 0; padding: 14px; overflow-x: auto; background: var(--surface); font: 13px/1.55 var(--font-mono); tab-size: 2; }
+pre code { background: none; padding: 0; font-size: inherit; }
+
+.note { margin: 14px 0; padding: 12px 16px; border-radius: 8px; border-left: 4px solid var(--accent); background: var(--accent-soft); max-width: 70ch; }
+.note.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+.note.good { border-left-color: var(--good); background: var(--good-soft); }
+.note.bad { border-left-color: var(--bad); background: var(--bad-soft); }
+.note p:last-child, .note ul:last-child { margin-bottom: 0; }
+.note strong.t { display: block; margin-bottom: 2px; }
+
+.tablewrap { overflow-x: auto; margin: 12px 0 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; }
+td code { white-space: nowrap; }
+
+.flow { margin: 16px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 14px; overflow-x: auto; }
+.flow svg { display: block; min-width: 720px; width: 100%; height: auto; }
+.flow .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.flow .box.hot { fill: var(--accent-soft); stroke: var(--accent); }
+.flow .lbl { font: 600 13px var(--font-body); fill: var(--ink); }
+.flow .sub { font: 12px var(--font-mono); fill: var(--muted); }
+.flow .arrow { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+.flow .arrowhead { fill: var(--muted); }
+.flow .cap { font: 12px var(--font-body); fill: var(--muted); }
+
+ol.steps { list-style: none; padding: 0; counter-reset: st; display: flex; flex-direction: column; gap: 10px; max-width: 76ch; }
+ol.steps li { counter-increment: st; display: grid; grid-template-columns: 30px 1fr; gap: 12px; margin: 0; }
+ol.steps li::before { content: counter(st); display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--surface); font: 600 14px var(--font-body); }
+ol.steps li div { padding-top: 3px; }
+
+details { margin: 10px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); max-width: 76ch; }
+summary { cursor: pointer; padding: 10px 14px; font-weight: 500; }
+details[open] summary { border-bottom: 1px solid var(--line); }
+details .inner { padding: 12px 14px 4px; }
+
+.status { display: inline-block; font: 500 12px var(--font-mono); padding: 2px 8px; border-radius: 999px; }
+.status.ok { background: var(--good-soft); color: var(--good); }
+.status.no { background: var(--warn-soft); color: var(--warn); }
+
+@media (max-width: 860px) {
+  .shell { grid-template-columns: 1fr; gap: 0; padding: 20px 16px 60px; }
+  nav.toc { position: static; margin-bottom: 8px; }
+  nav.toc ol { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  nav.toc a { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+  h1 { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<nav class="toc" aria-label="Зміст">
+  <p>Зміст</p>
+  <ol>
+    <li><a href="#big-picture">Що змінилось і навіщо</a></li>
+    <li><a href="#map">Карта класів</a></li>
+    <li><a href="#concepts">ООП-ідеї на цьому коді</a></li>
+    <li><a href="#request">Шлях одного запиту</a></li>
+    <li><a href="#errors">Помилки й ErrorHandler</a></li>
+    <li><a href="#values">Value object-и: CurrencyCode і Amount</a></li>
+    <li><a href="#model">Модель: RatesSnapshot і Conversion</a></li>
+    <li><a href="#provider">Інтерфейс RatesProvider і його реалізація</a></li>
+    <li><a href="#service">RatesService і RatesCache</a></li>
+    <li><a href="#http">HTTP: контролер, застосунок, точка входу</a></li>
+    <li><a href="#config">AppConfig</a></li>
+    <li><a href="#before">Було: стара версія для порівняння</a></li>
+    <li><a href="#tests">Тести</a></li>
+    <li><a href="#exercises">Вправи</a></li>
+    <li><a href="#status">Що перевірено</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="top">
+  <span class="tag">roadmap task/currency-converter · гілка refactor-oop</span>
+  <h1>Currency Converter: розбір ООП-версії</h1>
+  <p>Конвертер валют на Express і TypeScript, переписаний із функцій-замикань на класи: value object-и, інтерфейс постачальника курсів, кеш як окремий клас, ієрархія помилок і ін'єкція залежностей. Нижче видно, що робить кожен клас, чому код розкладено саме так і як це перевіряють тести.</p>
+  <div class="meta">
+    <span class="chip">TypeScript</span>
+    <span class="chip">Express 5</span>
+    <span class="chip">private constructor</span>
+    <span class="chip">interface + implements</span>
+    <span class="chip">Vitest</span>
+    <span class="chip">64 тести</span>
+  </div>
+</header>
+
+<!-- 1 -->
+<section id="big-picture">
+  <h2>1. Що змінилось і навіщо</h2>
+  <p>Раніше вся логіка жила у функції <code>createRatesService()</code>: вона створювала кеш, завантажувала курси, ділила запити й конвертувала суми, а замикання ховало внутрішні змінні. Валідацію робили функції, що повертали <code>{ ok, data }</code> або <code>{ ok, error }</code>. Тепер у проєкті <strong>класи</strong>, кожен із однією роллю. Відповіді API не змінились: 18 запитів до старої й нової версії дають <strong>однакові</strong> відповіді (див. «Що перевірено»).</p>
+
+  <div class="tablewrap"><table>
+    <thead><tr><th>Було</th><th>Стало</th><th>Що дає</th></tr></thead>
+    <tbody>
+      <tr><td><code>createRatesService()</code> — одна фабрика на ~100 рядків</td><td><code>RatesService</code> + <code>RatesCache</code> + <code>RatesProvider</code></td><td>кеш, джерело курсів і логіка розділені; кожну частину можна замінити окремо</td></tr>
+      <tr><td><code>download()</code> усередині замикання</td><td><code>ExchangeRateApiProvider implements RatesProvider</code></td><td>сервіс залежить від інтерфейсу, а не від конкретного API</td></tr>
+      <tr><td><code>parseCurrencyCode()</code> → <code>{ ok, data }</code></td><td><code>CurrencyCode.parse()</code> → об'єкт або виняток</td><td>правильність гарантована типом: невалідний <code>CurrencyCode</code> не існує</td></tr>
+      <tr><td><code>parseAmount()</code>, константа <code>MAX_AMOUNT</code></td><td><code>Amount</code> (<code>Amount.MAX</code>)</td><td>сума, яка вміє себе перевіряти і множити на курс</td></tr>
+      <tr><td>обʼєкти <code>RatesSnapshot</code>, <code>Conversion</code> — лише інтерфейси</td><td>однойменні класи з методами</td><td>логіка «знайти курс» і «рахувати результат» живе поруч з даними</td></tr>
+      <tr><td><code>RatesError</code> зі статусом</td><td><code>AppError</code> → <code>ValidationError</code>, <code>UnknownCurrencyError</code>, <code>ProviderError</code></td><td>тип помилки каже, що сталось; статус вшито в клас</td></tr>
+      <tr><td>обробники прямо в <code>createApp</code></td><td><code>ConverterController</code>, <code>ErrorHandler</code>, <code>ConverterApp</code></td><td>маршрути, обробка запитів і помилок — окремі відповідальності</td></tr>
+      <tr><td><code>config</code> — об'єкт, що читає <code>.env</code> при імпорті</td><td><code>AppConfig</code></td><td>без побічних ефектів при імпорті; перевіряється й тестується окремо</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note"><strong class="t">Чи завжди класи кращі за функції?</strong>
+    <p>Ні, і стара версія була робочою. Це навчальна переробка: вона показує, як виглядають інкапсуляція, успадкування, поліморфізм, інтерфейси та ін'єкція залежностей у справжньому коді. У кожному розділі нижче є пояснення, що саме це дає.</p></div>
+</section>
+
+<!-- 2 -->
+<section id="map">
+  <h2>2. Карта класів</h2>
+  <div class="file"><div class="name"><b>Діаграма залежностей</b><span>стрілка = «використовує»</span></div>
+<pre><code>server.ts  (composition root)
+  └─ ConverterApp
+       ├─ ConverterController ──► RatesService
+       │       │                    ├─ RatesProvider (інтерфейс)
+       │       │                    │     └─ ExchangeRateApiProvider  ◄── реалізує
+       │       │                    └─ RatesCache
+       │       └─ CurrencyCode, Amount          (parse → value objects)
+       └─ ErrorHandler ──► AppError
+
+RatesService.convert() → Conversion.of(RatesSnapshot, CurrencyCode, Amount)
+
+errors.ts:  AppError ◄─ ValidationError | UnknownCurrencyError | ProviderError</code></pre></div>
+
+  <div class="tablewrap"><table>
+    <thead><tr><th>Файл</th><th>Що</th></tr></thead>
+    <tbody>
+      <tr><td><code>src/server.ts</code></td><td>точка входу, composition root</td></tr>
+      <tr><td><code>src/ConverterApp.ts</code>, <code>ConverterController.ts</code>, <code>ErrorHandler.ts</code></td><td>HTTP-шар (Express)</td></tr>
+      <tr><td><code>src/RatesService.ts</code>, <code>RatesCache.ts</code></td><td>логіка кешу і конвертації</td></tr>
+      <tr><td><code>src/RatesProvider.ts</code>, <code>ExchangeRateApiProvider.ts</code></td><td>інтерфейс і реалізація «звідки курси»</td></tr>
+      <tr><td><code>src/RatesSnapshot.ts</code>, <code>Conversion.ts</code></td><td>модель даних</td></tr>
+      <tr><td><code>src/CurrencyCode.ts</code>, <code>Amount.ts</code></td><td>value object-и</td></tr>
+      <tr><td><code>src/AppConfig.ts</code>, <code>errors.ts</code></td><td>конфіг і помилки</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 3 -->
+<section id="concepts">
+  <h2>3. ООП-ідеї на цьому коді</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Ідея</th><th>Де</th><th>Простими словами</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Інкапсуляція</strong></td><td><code>#entries</code> у <code>RatesCache</code>, <code>#inFlight</code> у <code>RatesService</code>, <code>private constructor</code> у <code>CurrencyCode</code>, <code>Amount</code>, <code>Conversion</code></td><td>внутрішній стан сховано; ззовні лише методи. Приватний конструктор означає, що створити об'єкт можна тільки через <code>parse</code> чи <code>of</code>.</td></tr>
+      <tr><td><strong>Наслідування</strong></td><td><code>ValidationError extends AppError extends Error</code></td><td>спільна поведінка (статус, ім'я) в предку, нащадок додає свій статус і текст.</td></tr>
+      <tr><td><strong>Інтерфейс і поліморфізм</strong></td><td><code>RatesProvider</code> ← <code>ExchangeRateApiProvider</code> (і <code>StaticProvider</code> у тесті)</td><td><code>RatesService</code> викликає <code>fetchRates()</code>, не знаючи, хто саме відповість: справжній API чи заглушка.</td></tr>
+      <tr><td><strong>Композиція та ін'єкція залежностей</strong></td><td><code>new RatesService(provider, cache)</code>, <code>new ConverterApp(rates)</code></td><td>об'єкт отримує потрібні йому частини ззовні, а не створює їх сам. Замінити кеш чи провайдер можна без правок сервісу.</td></tr>
+      <tr><td><strong>Value object</strong></td><td><code>CurrencyCode</code>, <code>Amount</code></td><td>маленький незмінний об'єкт, який не може бути неправильним: перевірка при створенні.</td></tr>
+      <tr><td><strong>Фабрика і Singleton</strong></td><td><code>RatesService.create()</code>, <code>RatesService.shared()</code></td><td>статичні методи класу: перший будує новий сервіс, другий тримає один спільний.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note warn"><strong class="t"><code>private</code> проти <code>#</code>: два види «приватного»</strong>
+    <p>У TypeScript <code>private x</code> — лише підказка для компілятора: у готовому JavaScript поле видно. <code>#x</code> — справжнє приватне поле мови, до нього не дістатись навіть з консолі. Тут <code>#</code> стоїть там, де стан небезпечно чіпати (кеш, список запитів у польоті), а <code>private</code> — для залежностей із конструктора.</p></div>
+</section>
+
+<!-- 4 -->
+<section id="request">
+  <h2>4. Шлях одного запиту</h2>
+  <p>Запит: <code>GET /api/convert?from=usd&amp;to=UAH&amp;amount=12.5</code>.</p>
+  <ol class="steps">
+    <li><div><code>server.ts</code> створює <code>ConverterApp(RatesService.shared())</code>. Express викликає <code>controller.convert</code>.</div></li>
+    <li><div>Контролер перетворює параметри на <strong>об'єкти</strong>: <code>CurrencyCode.parse('usd','from')</code> → <code>USD</code>, те саме для <code>to</code>, <code>Amount.parse('12.5')</code>. Неправильний ввід кидає <code>ValidationError</code> (400).</div></li>
+    <li><div><code>RatesService.convert(from, to, amount)</code> просить <code>getRates(from)</code>. Спершу дивиться в <code>RatesCache</code>: свіжий знімок є — віддає його.</div></li>
+    <li><div>Нема в кеші: перевіряє <code>#inFlight</code>. Якщо такий запит уже йде, чекає на нього, а не робить ще один.</div></li>
+    <li><div>Інакше викликає <code>provider.fetchRates(base)</code>. <code>ExchangeRateApiProvider</code> ходить в API, перетворює статуси та сире тіло на <code>RatesSnapshot</code> і час життя.</div></li>
+    <li><div>Сервіс кладе знімок у кеш і віддає його. Якщо провайдер упав, а старий знімок є, віддає старий.</div></li>
+    <li><div><code>Conversion.of(snapshot, to, amount)</code> знаходить курс (або кидає <code>UnknownCurrencyError</code>) і рахує результат.</div></li>
+    <li><div><code>res.json(conversion)</code> викликає <code>conversion.toJSON()</code>. Помилка на будь-якому кроці потрапляє в <code>ErrorHandler</code> і стає <code>{ error }</code> з правильним статусом.</div></li>
+  </ol>
+</section>
+
+<!-- 5 -->
+<section id="errors">
+  <h2>5. Помилки й ErrorHandler</h2>
+  <div class="file"><div class="name"><b>src/errors.ts</b><span>наслідування</span></div>
+<pre><code>// Ієрархія помилок: кожна несе готовий HTTP-статус, тож ErrorHandler просто віддає її клієнту.
+//
+//   Error
+//    └─ AppError (status)
+//        ├─ ValidationError       400  поганий ввід користувача
+//        ├─ UnknownCurrencyError  404  такої валюти немає
+//        └─ ProviderError         502  проблема на боці постачальника курсів
+export class AppError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = new.target.name; // імʼя реального класу: ValidationError, ProviderError, ...
+  }
+}
+
+export class ValidationError extends AppError {
+  constructor(message: string) {
+    super(message, 400);
+  }
+}
+
+export class UnknownCurrencyError extends AppError {
+  constructor(code: string) {
+    super(`Unknown currency: ${code}`, 404);
+  }
+}
+
+export class ProviderError extends AppError {
+  constructor(message: string) {
+    super(message, 502);
+  }
+}</code></pre></div>
+  <div class="file"><div class="name"><b>src/ErrorHandler.ts</b><span>єдине місце відповідей про помилки</span></div>
+<pre><code>import type { NextFunction, Request, Response } from 'express';
+import { AppError } from './errors';
+
+// Єдине місце, де помилки стають HTTP-відповідями.
+export class ErrorHandler {
+  // Невідомий /api-шлях: JSON, а не HTML-сторінка Express
+  notFound = (_req: Request, res: Response): void =&gt; {
+    res.status(404).json({ error: 'Route not found' });
+  };
+
+  // Express розпізнає middleware помилок за чотирма параметрами, тому _next потрібен, хоч і не використовується
+  handle = (err: unknown, _req: Request, res: Response, _next: NextFunction): void =&gt; {
+    if (err instanceof AppError) {
+      res.status(err.status).json({ error: err.message }); // очікувана помилка: статус уже в самій помилці
+      return;
+    }
+    console.error(err); // баг: деталі лише в лог, клієнту загальне повідомлення
+    res.status(500).json({ error: 'Internal server error' });
+  };
+}</code></pre></div>
+  <ul>
+    <li><strong>Статус вшито в клас.</strong> Хто кидає <code>new UnknownCurrencyError('XXX')</code>, не думає про 404: він сам відомий класу. Раніше кожне місце мало передавати <code>(message, 404)</code>.</li>
+    <li><strong><code>err instanceof AppError</code></strong> у <code>ErrorHandler</code> покриває всі три нащадки одним порівнянням. Усе інше вважається багом: деталі в лог, клієнту «Internal server error».</li>
+    <li><strong>Валідація тепер теж помилка.</strong> Раніше контролер перевіряв <code>from.ok</code>, <code>to.ok</code>, <code>amount.ok</code> і сам складав відповіді 400. Тепер <code>parse</code> кидає <code>ValidationError</code>, а контролер це не ловить: Express 5 передає відхилення async-обробників в обробник помилок сам.</li>
+    <li><strong>Стрілкові поля</strong> (<code>handle = (err, …) =&gt; …</code>) не втрачають <code>this</code>, коли Express викликає їх як звичайні функції.</li>
+  </ul>
+</section>
+
+<!-- 6 -->
+<section id="values">
+  <h2>6. Value object-и: CurrencyCode і Amount</h2>
+  <div class="file"><div class="name"><b>src/CurrencyCode.ts</b><span>value object</span></div>
+<pre><code>import { ValidationError } from './errors';
+
+// Код валюти (USD, UAH…). Value object: створити його можна лише через parse, а parse
+// пропускає тільки 3 великі латинські літери. Тож якщо в руках є CurrencyCode, він правильний.
+export class CurrencyCode {
+  // field — назва параметра запиту, щоб повідомлення було точним («from is required»)
+  static parse(value: unknown, field: string): CurrencyCode {
+    if (typeof value !== 'string') throw new ValidationError(`${field} is required`);
+    const code = value.trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(code)) throw new ValidationError(`${field} must be a 3-letter currency code`);
+    return new CurrencyCode(code);
+  }
+
+  // Для внутрішнього коду, де відомо, що значення правильне (наприклад, базова валюта USD)
+  static of(code: string): CurrencyCode {
+    return CurrencyCode.parse(code, 'code');
+  }
+
+  private constructor(readonly value: string) {}
+
+  equals(other: CurrencyCode): boolean {
+    return this.value === other.value;
+  }
+
+  toString(): string {
+    return this.value;
+  }
+}</code></pre></div>
+  <div class="file"><div class="name"><b>src/Amount.ts</b><span>value object</span></div>
+<pre><code>import { ValidationError } from './errors';
+
+// Сума до конвертації. Value object: правильна за побудовою (невідʼємне число не більше MAX).
+export class Amount {
+  // Більше за це float уже втрачає точність
+  static readonly MAX = 1e12;
+
+  static parse(value: unknown): Amount {
+    if (typeof value !== 'string' || value.trim() === '') throw new ValidationError('amount is required');
+    // Number('1e3') = 1000, Number('0x10') = 16: приймаємо лише звичайний запис 12 або 12.5
+    if (!/^\d+(\.\d+)?$/.test(value.trim())) throw new ValidationError('amount must be a non-negative number');
+    const amount = Number(value);
+    if (amount &gt; Amount.MAX) throw new ValidationError(`amount must not exceed ${Amount.MAX}`);
+    return new Amount(amount);
+  }
+
+  private constructor(readonly value: number) {}
+
+  // Множення на курс із округленням до 4 знаків, щоб прибрати хвости плаваючої крапки (0.1 + 0.2)
+  times(rate: number): number {
+    return Math.round(this.value * rate * 1e4) / 1e4;
+  }
+}</code></pre></div>
+  <ul>
+    <li><strong>Приватний конструктор + статичний <code>parse</code>.</strong> Це єдиний вхід. Якщо функція отримує <code>CurrencyCode</code>, їй не треба перевіряти, що це 3 великі літери: тип це гарантує.</li>
+    <li><strong>Що змінилось відносно <code>{ ok, data }</code>.</strong> Старий <code>Parsed&lt;T&gt;</code> примушував кожного викликача перевіряти <code>ok</code>. Виняток не дає «забути перевірку»: без нього код просто не дійде далі.</li>
+    <li><strong><code>Amount.times(rate)</code>.</strong> Округлення до 4 знаків перенесено в клас суми: «як множити суму» — її відповідальність, а не сервісу.</li>
+    <li><strong><code>CurrencyCode.of('USD')</code></strong> — для внутрішніх місць, де код відомий заздалегідь (базова валюта списку).</li>
+  </ul>
+</section>
+
+<!-- 7 -->
+<section id="model">
+  <h2>7. Модель: RatesSnapshot і Conversion</h2>
+  <div class="file"><div class="name"><b>src/RatesSnapshot.ts</b><span>знімок курсів</span></div>
+<pre><code>import type { CurrencyCode } from './CurrencyCode';
+
+// Знімок курсів однієї базової валюти на момент оновлення провайдером.
+// Знає лише про себе: які валюти в ньому є і який курс до кожної.
+export class RatesSnapshot {
+  constructor(
+    readonly base: CurrencyCode,
+    private readonly rates: Readonly&lt;Record&lt;string, number&gt;&gt;,
+    readonly updatedAt: string, // коли провайдер востаннє оновив курси (ISO, UTC)
+  ) {}
+
+  // Коди валют за абеткою
+  currencies(): string[] {
+    return Object.keys(this.rates).sort();
+  }
+
+  // Курс до валюти або undefined, якщо такої немає у знімку
+  rateTo(code: CurrencyCode): number | undefined {
+    const rate = this.rates[code.value];
+    return typeof rate === 'number' ? rate : undefined;
+  }
+}</code></pre></div>
+  <div class="file"><div class="name"><b>src/Conversion.ts</b><span>результат конвертації</span></div>
+<pre><code>import type { Amount } from './Amount';
+import type { CurrencyCode } from './CurrencyCode';
+import { UnknownCurrencyError } from './errors';
+import type { RatesSnapshot } from './RatesSnapshot';
+
+// Результат конвертації. Створюється лише через Conversion.of, тож завжди узгоджений:
+// результат точно дорівнює сумі × курс (з округленням).
+export class Conversion {
+  static of(snapshot: RatesSnapshot, to: CurrencyCode, amount: Amount): Conversion {
+    const rate = snapshot.rateTo(to);
+    if (rate === undefined) throw new UnknownCurrencyError(to.value);
+    return new Conversion(snapshot.base.value, to.value, amount.value, rate, amount.times(rate), snapshot.updatedAt);
+  }
+
+  private constructor(
+    readonly from: string,
+    readonly to: string,
+    readonly amount: number,
+    readonly rate: number,
+    readonly result: number,
+    readonly updatedAt: string,
+  ) {}
+
+  // res.json(conversion) викликає цей метод сам: форма відповіді API визначена в одному місці
+  toJSON() {
+    return { from: this.from, to: this.to, amount: this.amount, rate: this.rate, result: this.result, updatedAt: this.updatedAt };
+  }
+}</code></pre></div>
+  <ul>
+    <li><strong>Знімок захищає свої дані.</strong> Поле <code>rates</code> приватне й <code>Readonly</code>: ззовні видно лише <code>currencies()</code> і <code>rateTo()</code>. Сортування кодів і перевірка «курс — це число» зроблені тут один раз.</li>
+    <li><strong><code>Conversion.of</code></strong> — фабричний метод: єдине місце, де є формула <code>amount × rate</code> і помилка «валюти немає». Приватний конструктор не дає створити суперечливий результат (з довільним <code>result</code>).</li>
+    <li><strong><code>toJSON()</code></strong> визначає форму відповіді API: <code>JSON.stringify</code> і <code>res.json</code> викликають його самі. Тест перевіряє порядок полів.</li>
+  </ul>
+</section>
+
+<!-- 8 -->
+<section id="provider">
+  <h2>8. Інтерфейс RatesProvider і його реалізація</h2>
+  <div class="file"><div class="name"><b>src/RatesProvider.ts</b><span>інтерфейс</span></div>
+<pre><code>import type { CurrencyCode } from './CurrencyCode';
+import type { RatesSnapshot } from './RatesSnapshot';
+
+// Те, що провайдер віддає сервісу: знімок курсів і момент, до якого його можна вважати свіжим.
+export interface ProviderRates {
+  snapshot: RatesSnapshot;
+  expiresAt: number; // мс від епохи
+}
+
+// Контракт «звідки беруться курси». RatesService залежить лише від цього інтерфейсу, а не від
+// конкретного сервісу: щоб перейти на інший API, пишеш інший клас, який реалізує RatesProvider.
+export interface RatesProvider {
+  fetchRates(base: CurrencyCode): Promise&lt;ProviderRates&gt;;
+}</code></pre></div>
+  <div class="file"><div class="name"><b>src/ExchangeRateApiProvider.ts</b><span>implements RatesProvider</span></div>
+<pre><code>import type { CurrencyCode } from './CurrencyCode';
+import { ProviderError, UnknownCurrencyError } from './errors';
+import type { ProviderRates, RatesProvider } from './RatesProvider';
+import { RatesSnapshot } from './RatesSnapshot';
+
+export interface ExchangeRateApiOptions {
+  baseUrl: string;
+  fallbackTtlMs: number; // на скільки вважати курси свіжими, якщо API не підказало час наступного оновлення
+  fetchFn?: typeof fetch; // Dependency Injection: у тестах підставляємо підробку
+  now?: () =&gt; number;
+  timeoutMs?: number;
+}
+
+// Реалізація RatesProvider для ExchangeRate-API (open access). Єдине місце, що знає формат цього API:
+// адресу, поля відповіді й те, як його статуси перетворюються на наші помилки.
+export class ExchangeRateApiProvider implements RatesProvider {
+  private readonly fetchFn: typeof fetch;
+  private readonly now: () =&gt; number;
+  private readonly timeoutMs: number;
+
+  constructor(private readonly options: ExchangeRateApiOptions) {
+    this.fetchFn = options.fetchFn ?? fetch;
+    this.now = options.now ?? Date.now;
+    this.timeoutMs = options.timeoutMs ?? 8000;
+  }
+
+  async fetchRates(base: CurrencyCode): Promise&lt;ProviderRates&gt; {
+    const res = await this.request(base);
+    const body = await this.readBody(res, base);
+    return this.toProviderRates(base, body);
+  }
+
+  private async request(base: CurrencyCode): Promise&lt;Response&gt; {
+    let res: Response;
+    try {
+      res = await this.fetchFn(`${this.options.baseUrl}/${base}`, { signal: AbortSignal.timeout(this.timeoutMs) });
+    } catch {
+      throw new ProviderError('Exchange rate provider is unreachable');
+    }
+    if (res.status === 429) throw new ProviderError('Exchange rate provider rate limit reached, try again later');
+    if (res.status === 404) throw new UnknownCurrencyError(base.value);
+    return res;
+  }
+
+  // Тіло відповіді має «довільну» форму (any): перевіряємо його вручну, перш ніж довіряти
+  private async readBody(res: Response, base: CurrencyCode): Promise&lt;any&gt; {
+    let body: any;
+    try {
+      body = await res.json();
+    } catch {
+      throw new ProviderError('Exchange rate provider returned invalid data');
+    }
+    if (body?.['error-type'] === 'unsupported-code') throw new UnknownCurrencyError(base.value);
+    if (!res.ok || body?.result !== 'success' || typeof body.rates !== 'object' || body.rates === null) {
+      throw new ProviderError('Exchange rate provider returned an error');
+    }
+    return body;
+  }
+
+  private toProviderRates(base: CurrencyCode, body: any): ProviderRates {
+    const nextUpdateMs = Number(body.time_next_update_unix) * 1000;
+    const expiresAt = nextUpdateMs &gt; this.now() ? nextUpdateMs : this.now() + this.options.fallbackTtlMs;
+    const updatedAt = new Date(Number(body.time_last_update_unix) * 1000).toISOString();
+    return { snapshot: new RatesSnapshot(base, body.rates, updatedAt), expiresAt };
+  }
+}</code></pre></div>
+  <ul>
+    <li><strong>Інтерфейс описує, що вміє постачальник курсів</strong> (<code>fetchRates</code>), а не як. <code>RatesService</code> знає лише інтерфейс. Це «залежність від абстракції»: хочеш інший API, пишеш інший клас з тим самим методом.</li>
+    <li><strong><code>implements</code></strong> змушує компілятор перевірити, що клас справді має всі методи інтерфейсу.</li>
+    <li><strong>Дрібні приватні методи</strong> (<code>request</code>, <code>readBody</code>, <code>toProviderRates</code>). Стара функція <code>download</code> була одним довгим блоком; тепер кожен крок названо й читається окремо.</li>
+    <li><strong>Єдине місце, де є <code>any</code>.</strong> Тіло відповіді чужого API заздалегідь невідоме, тому <code>readBody</code> перевіряє його вручну, перш ніж довіряти, і лише потім з нього будуються наші типи.</li>
+  </ul>
+</section>
+
+<!-- 9 -->
+<section id="service">
+  <h2>9. RatesService і RatesCache</h2>
+  <div class="file"><div class="name"><b>src/RatesCache.ts</b><span>кеш</span></div>
+<pre><code>import type { CurrencyCode } from './CurrencyCode';
+import type { RatesSnapshot } from './RatesSnapshot';
+
+interface Entry {
+  snapshot: RatesSnapshot;
+  expiresAt: number;
+}
+
+// Кеш знімків курсів у памʼяті. Кожен запис живе до свого expiresAt.
+// Годинник (now) передається в конструктор, тому в тестах час можна «крутити» вручну.
+export class RatesCache {
+  readonly #entries = new Map&lt;string, Entry&gt;();
+
+  constructor(private readonly now: () =&gt; number = Date.now) {}
+
+  // Свіжий знімок або undefined, якщо запису немає чи він застарів
+  getFresh(base: CurrencyCode): RatesSnapshot | undefined {
+    const entry = this.#entries.get(base.value);
+    return entry &amp;&amp; entry.expiresAt &gt; this.now() ? entry.snapshot : undefined;
+  }
+
+  // Знімок навіть застарілий: потрібен як запасний варіант, коли провайдер недоступний
+  getStale(base: CurrencyCode): RatesSnapshot | undefined {
+    return this.#entries.get(base.value)?.snapshot;
+  }
+
+  set(base: CurrencyCode, snapshot: RatesSnapshot, expiresAt: number): void {
+    this.#entries.set(base.value, { snapshot, expiresAt });
+  }
+}</code></pre></div>
+  <div class="file"><div class="name"><b>src/RatesService.ts</b><span>сервіс, Factory, Singleton</span></div>
+<pre><code>import { Amount } from './Amount';
+import { AppConfig } from './AppConfig';
+import { Conversion } from './Conversion';
+import { CurrencyCode } from './CurrencyCode';
+import { ExchangeRateApiProvider } from './ExchangeRateApiProvider';
+import { ProviderError } from './errors';
+import type { RatesProvider } from './RatesProvider';
+import { RatesCache } from './RatesCache';
+import type { RatesSnapshot } from './RatesSnapshot';
+
+export interface RatesServiceOptions {
+  config?: AppConfig;
+  baseUrl?: string;
+  fetchFn?: typeof fetch; // Dependency Injection: у тестах підставляємо підробку
+  now?: () =&gt; number;
+  fallbackTtlMs?: number;
+}
+
+// Сервіс курсів: бере знімки в провайдера, кешує їх і конвертує суми.
+// Залежності (provider, cache) приходять у конструктор, тож сервіс не знає, звідки курси і де вони лежать.
+export class RatesService {
+  readonly #inFlight = new Map&lt;string, Promise&lt;RatesSnapshot&gt;&gt;();
+
+  constructor(
+    private readonly provider: RatesProvider,
+    private readonly cache: RatesCache,
+  ) {}
+
+  // ── Factory: щоразу новий сервіс зі своїм кешем (зручно для тестів) ──
+  static create(options: RatesServiceOptions = {}): RatesService {
+    const config = options.config ?? AppConfig.defaults();
+    const now = options.now ?? Date.now;
+    const provider = new ExchangeRateApiProvider({
+      baseUrl: options.baseUrl ?? config.ratesApiUrl,
+      fetchFn: options.fetchFn ?? fetch,
+      now,
+      fallbackTtlMs: options.fallbackTtlMs ?? config.ratesFallbackTtlMs,
+    });
+    return new RatesService(provider, new RatesCache(now));
+  }
+
+  // ── Singleton: один спільний сервіс (і кеш) на весь застосунок ──
+  // Без цього кожен новий сервіс мав би порожній кеш і зайвий раз ходив би до API з лімітом.
+  static #shared: RatesService | undefined;
+
+  static shared(): RatesService {
+    RatesService.#shared ??= RatesService.create({ config: AppConfig.load() });
+    return RatesService.#shared;
+  }
+
+  async getRates(base: CurrencyCode): Promise&lt;RatesSnapshot&gt; {
+    const fresh = this.cache.getFresh(base);
+    if (fresh) return fresh;
+
+    // Одночасні запити на ту саму валюту ділять один виклик до провайдера
+    let pending = this.#inFlight.get(base.value);
+    if (!pending) {
+      pending = this.refresh(base).finally(() =&gt; this.#inFlight.delete(base.value));
+      this.#inFlight.set(base.value, pending);
+    }
+    return pending;
+  }
+
+  async listCurrencies(): Promise&lt;string[]&gt; {
+    return (await this.getRates(CurrencyCode.of('USD'))).currencies();
+  }
+
+  async convert(from: CurrencyCode, to: CurrencyCode, amount: Amount): Promise&lt;Conversion&gt; {
+    return Conversion.of(await this.getRates(from), to, amount);
+  }
+
+  private async refresh(base: CurrencyCode): Promise&lt;RatesSnapshot&gt; {
+    try {
+      const { snapshot, expiresAt } = await this.provider.fetchRates(base);
+      this.cache.set(base, snapshot, expiresAt);
+      return snapshot;
+    } catch (err) {
+      // Провайдер недоступний, а старі курси є: краще віддати їх, ніж помилку.
+      // Помилку «такої валюти немає» (404) не підміняємо: вона правдива.
+      const stale = this.cache.getStale(base);
+      if (stale &amp;&amp; err instanceof ProviderError) return stale;
+      throw err;
+    }
+  }
+}</code></pre></div>
+  <ul>
+    <li><strong>Ін'єкція залежностей.</strong> <code>new RatesService(provider, cache)</code>: сервіс не створює провайдер сам. У тесті в нього можна вставити <code>StaticProvider</code> без жодного <code>fetch</code> (див. розділ про тести).</li>
+    <li><strong><code>RatesCache</code> бере годинник у конструкторі.</strong> Тест «крутить» час вручну й перевіряє, що знімок протухає рівно в момент <code>expiresAt</code>.</li>
+    <li><strong><code>getFresh</code> і <code>getStale</code>.</strong> Два питання до кешу: «чи є свіже?» і «чи є хоч щось, навіть старе?». Друге потрібне, коли провайдер упав.</li>
+    <li><strong><code>#inFlight</code></strong> зберігає Promise запиту, що вже виконується. Десять одночасних запитів на USD дають один виклик до API.</li>
+    <li><strong>Статичні члени.</strong> <code>RatesService.create()</code> — фабрика, <code>RatesService.shared()</code> — Singleton із приватним статичним полем <code>#shared</code>. Вони не потребують екземпляра, тому прив'язані до класу.</li>
+    <li><strong>Чому <code>stale</code> лише для <code>ProviderError</code>.</strong> Якщо API відповів «такої валюти немає» (404), це правда, і підмінювати її застарілими курсами не можна.</li>
+  </ul>
+</section>
+
+<!-- 10 -->
+<section id="http">
+  <h2>10. HTTP: контролер, застосунок, точка входу</h2>
+  <div class="file"><div class="name"><b>src/ConverterController.ts</b><span>читає запит</span></div>
+<pre><code>import type { Request, Response } from 'express';
+import { Amount } from './Amount';
+import { CurrencyCode } from './CurrencyCode';
+import type { RatesService } from './RatesService';
+
+// HTTP-шар: читає параметри запиту, перетворює їх на value object-и, викликає сервіс і віддає JSON.
+// Жодної логіки конвертації тут немає. Помилки (ValidationError тощо) не ловимо: Express 5 передає
+// відхилення async-обробників в ErrorHandler сам.
+export class ConverterController {
+  constructor(private readonly rates: RatesService) {}
+
+  // Обробники — стрілкові поля, щоб `this` не втрачався, коли Express викликає їх як звичайні функції
+  listCurrencies = async (_req: Request, res: Response): Promise&lt;void&gt; =&gt; {
+    res.json({ currencies: await this.rates.listCurrencies() });
+  };
+
+  convert = async (req: Request, res: Response): Promise&lt;void&gt; =&gt; {
+    // Порядок важливий: перша помилка в цьому порядку (from, to, amount) і потрапляє до користувача
+    const from = CurrencyCode.parse(req.query.from, 'from');
+    const to = CurrencyCode.parse(req.query.to, 'to');
+    const amount = Amount.parse(req.query.amount);
+    res.json(await this.rates.convert(from, to, amount));
+  };
+}</code></pre></div>
+  <div class="file"><div class="name"><b>src/ConverterApp.ts</b><span>збирає Express</span></div>
+<pre><code>import type { Server } from 'node:http';
+import { fileURLToPath } from 'node:url';
+import express, { type Express } from 'express';
+import { ConverterController } from './ConverterController';
+import { ErrorHandler } from './ErrorHandler';
+import type { RatesService } from './RatesService';
+
+const publicDir = fileURLToPath(new URL('../public', import.meta.url));
+
+// Застосунок: збирає Express із контролера й обробника помилок. Залежність (RatesService) — з конструктора.
+export class ConverterApp {
+  readonly express: Express; // публічний, щоб тести могли передати його в supertest без запуску сервера
+
+  constructor(rates: RatesService) {
+    const controller = new ConverterController(rates);
+    const errors = new ErrorHandler();
+
+    const app = express();
+    app.disable('x-powered-by');
+
+    app.get('/api/currencies', controller.listCurrencies);
+    app.get('/api/convert', controller.convert);
+    app.use(express.static(publicDir));
+    app.use('/api', errors.notFound);
+    app.use(errors.handle); // обовʼязково останнім
+
+    this.express = app;
+  }
+
+  listen(port: number, onListening?: () =&gt; void): Server {
+    return this.express.listen(port, onListening);
+  }
+}</code></pre></div>
+  <div class="file"><div class="name"><b>src/server.ts</b><span>composition root</span></div>
+<pre><code>// Точка входу й composition root: тут створюються й з'єднуються реальні обʼєкти.
+import { AppConfig } from './AppConfig';
+import { ConverterApp } from './ConverterApp';
+import { RatesService } from './RatesService';
+
+const config = AppConfig.load();
+const server = new ConverterApp(RatesService.shared()).listen(config.port, () =&gt; {
+  console.log(`Currency converter listening on http://localhost:${config.port}`);
+});
+
+const shutdown = () =&gt; server.close(() =&gt; process.exit(0));
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);</code></pre></div>
+  <ul>
+    <li><strong>Контролер тонкий:</strong> три рядки перетворюють параметри на об'єкти, один викликає сервіс. Бізнес-логіки немає.</li>
+    <li><strong>Порядок розбору <code>from → to → amount</code></strong> збережено: користувач бачить першу помилку з цього порядку, як і раніше (є тест).</li>
+    <li><strong><code>ConverterApp.express</code></strong> публічний, тож <code>supertest</code> отримує застосунок без запуску сервера на порту.</li>
+    <li><strong>Порядок middleware важливий:</strong> маршрути → статика → JSON-404 для <code>/api</code> → <code>ErrorHandler</code> останнім.</li>
+  </ul>
+</section>
+
+<!-- 11 -->
+<section id="config">
+  <h2>11. AppConfig</h2>
+  <div class="file"><div class="name"><b>src/AppConfig.ts</b><span>конфіг</span></div>
+<pre><code>// Налаштування застосунку. Усі значення перевіряються при створенні: неправильний PORT
+// не дає програмі стартувати, а не ламає її пізніше.
+export class AppConfig {
+  static readonly DEFAULT_API_URL = 'https://open.er-api.com/v6/latest';
+
+  // Чиста функція від env: у тестах передаємо свій обʼєкт і не чіпаємо process.env
+  static fromEnv(env: NodeJS.ProcessEnv = process.env): AppConfig {
+    return new AppConfig(
+      AppConfig.toInt(env, 'PORT', 3000, 1, 65535),
+      AppConfig.toInt(env, 'RATES_FALLBACK_TTL_SECONDS', 3600, 60, 86400),
+      AppConfig.DEFAULT_API_URL,
+    );
+  }
+
+  // Значення за замовчуванням, без .env і змінних середовища
+  static defaults(): AppConfig {
+    return AppConfig.fromEnv({});
+  }
+
+  // Для запуску застосунку: спершу підвантажує .env (він необовʼязковий), потім читає env
+  static load(): AppConfig {
+    try {
+      process.loadEnvFile();
+    } catch {
+      // .env необов'язковий: є значення за замовчуванням
+    }
+    return AppConfig.fromEnv();
+  }
+
+  // Number('abc') дає NaN, тому перевіряємо, що змінна справді ціле число в межах
+  private static toInt(env: NodeJS.ProcessEnv, name: string, fallback: number, min: number, max: number): number {
+    const value = Number(env[name] ?? fallback);
+    if (!Number.isInteger(value) || value &lt; min || value &gt; max) {
+      throw new Error(`${name} must be an integer from ${min} to ${max}, got "${env[name]}"`);
+    }
+    return value;
+  }
+
+  private constructor(
+    readonly port: number,
+    readonly ratesFallbackTtlSeconds: number,
+    readonly ratesApiUrl: string,
+  ) {}
+
+  get ratesFallbackTtlMs(): number {
+    return this.ratesFallbackTtlSeconds * 1000;
+  }
+}</code></pre></div>
+  <ul>
+    <li><strong>Без побічних ефектів при імпорті.</strong> Старий <code>config.ts</code> читав <code>.env</code> одразу, щойно його імпортували (навіть у тестах). Тепер <code>.env</code> підвантажує лише <code>AppConfig.load()</code>, який викликає <code>server.ts</code>.</li>
+    <li><strong><code>fromEnv(env)</code> — чиста функція:</strong> тест передає свій об'єкт і перевіряє правильні та неправильні значення, не чіпаючи <code>process.env</code>.</li>
+    <li><strong>Валідація при створенні.</strong> Неправильний <code>PORT</code> зупиняє запуск із зрозумілим повідомленням, а не ламає програму пізніше.</li>
+    <li><strong>Приватні статичний <code>toInt</code> і конструктор:</strong> створити <code>AppConfig</code> можна лише через <code>fromEnv</code>, <code>defaults</code> чи <code>load</code>.</li>
+  </ul>
+</section>
+
+<!-- 12 -->
+<section id="before">
+  <h2>12. Було: стара версія для порівняння</h2>
+  <details>
+    <summary>Стара <code>src/rates.ts</code> (гілка <code>main</code>): уся логіка в одній фабриці</summary>
+    <div class="inner">
+      <div class="file"><div class="name"><b>src/rates.ts</b><span>гілка main</span></div>
+<pre><code>import { config } from './config';
+
+// Помилка з готовим HTTP-статусом: app.ts просто віддає її клієнту
+export class RatesError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+export interface RatesSnapshot {
+  base: string;
+  rates: Record&lt;string, number&gt;;
+  updatedAt: string; // коли провайдер востаннє оновив курси (ISO, UTC)
+}
+
+export interface Conversion {
+  from: string;
+  to: string;
+  amount: number;
+  rate: number;
+  result: number;
+  updatedAt: string;
+}
+
+export interface RatesServiceOptions {
+  baseUrl?: string;
+  fetchFn?: typeof fetch; // Dependency Injection: у тестах підставляємо підробку
+  now?: () =&gt; number;
+  fallbackTtlMs?: number;
+}
+
+interface CacheEntry {
+  snapshot: RatesSnapshot;
+  expiresAt: number;
+}
+
+// Factory: кожен виклик створює незалежний сервіс зі своїм кешем (тести беруть свій).
+export function createRatesService(options: RatesServiceOptions = {}) {
+  const baseUrl = options.baseUrl ?? config.ratesApiUrl;
+  const fetchFn = options.fetchFn ?? fetch;
+  const now = options.now ?? Date.now;
+  const fallbackTtlMs = options.fallbackTtlMs ?? config.ratesFallbackTtlSeconds * 1000;
+
+  const cache = new Map&lt;string, CacheEntry&gt;();
+  const inFlight = new Map&lt;string, Promise&lt;RatesSnapshot&gt;&gt;();
+
+  async function download(base: string): Promise&lt;RatesSnapshot&gt; {
+    let res: Response;
+    try {
+      res = await fetchFn(`${baseUrl}/${base}`, { signal: AbortSignal.timeout(8000) });
+    } catch {
+      throw new RatesError('Exchange rate provider is unreachable', 502);
+    }
+    if (res.status === 429) throw new RatesError('Exchange rate provider rate limit reached, try again later', 502);
+    if (res.status === 404) throw new RatesError(`Unknown currency: ${base}`, 404);
+
+    let body: any;
+    try {
+      body = await res.json();
+    } catch {
+      throw new RatesError('Exchange rate provider returned invalid data', 502);
+    }
+    if (body?.['error-type'] === 'unsupported-code') throw new RatesError(`Unknown currency: ${base}`, 404);
+    if (!res.ok || body?.result !== 'success' || typeof body.rates !== 'object' || body.rates === null) {
+      throw new RatesError('Exchange rate provider returned an error', 502);
+    }
+
+    const nextUpdateMs = Number(body.time_next_update_unix) * 1000;
+    const expiresAt = nextUpdateMs &gt; now() ? nextUpdateMs : now() + fallbackTtlMs;
+    const snapshot: RatesSnapshot = {
+      base,
+      rates: body.rates,
+      updatedAt: new Date(Number(body.time_last_update_unix) * 1000).toISOString(),
+    };
+    cache.set(base, { snapshot, expiresAt });
+    return snapshot;
+  }
+
+  async function getRates(base: string): Promise&lt;RatesSnapshot&gt; {
+    const cached = cache.get(base);
+    if (cached &amp;&amp; cached.expiresAt &gt; now()) return cached.snapshot;
+
+    // Одночасні запити на ту саму валюту ділять один виклик до провайдера
+    let pending = inFlight.get(base);
+    if (!pending) {
+      pending = download(base)
+        .catch((err) =&gt; {
+          // Провайдер недоступний, а старі курси є: краще віддати їх, ніж помилку
+          if (cached &amp;&amp; err instanceof RatesError &amp;&amp; err.status === 502) return cached.snapshot;
+          throw err;
+        })
+        .finally(() =&gt; inFlight.delete(base));
+      inFlight.set(base, pending);
+    }
+    return pending;
+  }
+
+  async function listCurrencies(): Promise&lt;string[]&gt; {
+    const { rates } = await getRates('USD');
+    return Object.keys(rates).sort();
+  }
+
+  async function convert(from: string, to: string, amount: number): Promise&lt;Conversion&gt; {
+    const { rates, updatedAt } = await getRates(from);
+    const rate = rates[to];
+    if (typeof rate !== 'number') throw new RatesError(`Unknown currency: ${to}`, 404);
+    // 4 знаки після коми, щоб прибрати хвости плаваючої крапки (0.1 + 0.2)
+    const result = Math.round(amount * rate * 1e4) / 1e4;
+    return { from, to, amount, rate, result, updatedAt };
+  }
+
+  return { getRates, listCurrencies, convert };
+}
+
+export type RatesService = ReturnType&lt;typeof createRatesService&gt;;
+
+// Singleton: один спільний сервіс (і кеш) на весь застосунок.
+// Без цього кожен новий сервіс мав би порожній кеш і зайвий раз ходив би до API з лімітом.
+let sharedService: RatesService | undefined;
+
+export function getRatesService(): RatesService {
+  sharedService ??= createRatesService();
+  return sharedService;
+}</code></pre></div>
+      <p>Тут усе разом: запит до API, розбір помилок, кеш, спільні запити, конвертація, Factory і Singleton. Працює, але щоб додати другий постачальник курсів чи замінити кеш, довелося б розрізати цю функцію. У новій версії кожна з цих частин окремий клас.</p>
+    </div>
+  </details>
+</section>
+
+<!-- 13 -->
+<section id="tests">
+  <h2>13. Тести</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Файл</th><th>Що перевіряє</th><th>Тестів</th></tr></thead>
+    <tbody>
+      <tr><td><code>test/domain.test.ts</code></td><td>помилки, <code>CurrencyCode</code>, <code>Amount</code>, <code>RatesSnapshot</code>, <code>Conversion</code>, <code>RatesCache</code>, <code>AppConfig</code></td><td class="num">16</td></tr>
+      <tr><td><code>test/rates.test.ts</code></td><td><code>RatesService</code> (кеш, час, запасні курси), <code>ExchangeRateApiProvider</code>, власний провайдер, Factory і Singleton</td><td class="num">23</td></tr>
+      <tr><td><code>test/api.test.ts</code></td><td>HTTP через <code>supertest</code>: усі коди 200/400/404/500/502, форма відповіді, заголовки</td><td class="num">25</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note good"><strong class="t">Тест, що доводить користь інтерфейсу</strong>
+    <p>У <code>rates.test.ts</code> є клас <code>StaticProvider implements RatesProvider</code>, який не використовує жодного <code>fetch</code>. <code>RatesService</code> працює з ним без жодних змін, бо залежить лише від інтерфейсу. Це і є поліморфізм на практиці.</p></div>
+  <ul>
+    <li><strong>Нове проти старої версії:</strong> тести часу життя кешу на рівні <code>RatesCache</code>; перевірка точних повідомлень про помилки; порядок полів відповіді; що неочікуваний баг дає 500 без деталей у відповіді; що <code>x-powered-by</code> вимкнено; перевірка конфігу без <code>process.env</code>.</li>
+    <li><strong>41 тест → 64.</strong> Старі сценарії збережено (їх перенесено на нове API), нові додано поруч.</li>
+  </ul>
+</section>
+
+<!-- 14 -->
+<section id="exercises">
+  <h2>14. Вправи</h2>
+  <ol>
+    <li><strong>Другий провайдер.</strong> Напиши <code>FrankfurterProvider implements RatesProvider</code> (інший безкоштовний API). Які файли зміняться, окрім нового? (Підказка: лише <code>RatesService.create</code> або <code>server.ts</code>.)</li>
+    <li><strong>Кеш на диск.</strong> Зроби <code>FileRatesCache</code> з тими самими методами <code>getFresh</code>, <code>getStale</code>, <code>set</code>. Чи доведеться чіпати <code>RatesService</code>? Що треба зробити з типом кешу в його конструкторі (підказка: інтерфейс)?</li>
+    <li><strong>Нова помилка.</strong> Додай <code>RateLimitError extends ProviderError</code> для відповіді 429 і перевір, що <code>ErrorHandler</code> не змінився.</li>
+    <li><strong>Зламай навмисно.</strong> Зроби конструктор <code>Amount</code> публічним і створи <code>new Amount(-5)</code>. Що тепер не гарантується? Який тест це не помітить?</li>
+    <li><strong>Поверни <code>this</code>.</strong> Зроби <code>listCurrencies = async (...) =&gt; ...</code> звичайним методом і подивись, що скаже Express при першому запиті. Чому стрілкове поле це лікує?</li>
+  </ol>
+  <details>
+    <summary>Перевір себе: чому <code>RatesCache</code> бере <code>now</code> у конструкторі, а не викликає <code>Date.now()</code> усередині?</summary>
+    <div class="inner"><p>Тоді тест може передати свій годинник і «пересунути» час на годину за мілісекунду. З прямим <code>Date.now()</code> довелося б чекати або підміняти глобальний час. Це та сама ін'єкція залежності, що й <code>fetchFn</code>.</p></div>
+  </details>
+  <details>
+    <summary>Перевір себе: навіщо <code>RatesService</code> знає про <code>ProviderError</code>, а не про всі <code>AppError</code>?</summary>
+    <div class="inner"><p>Запасні (застарілі) курси доречні лише тоді, коли проблема на стороні провайдера (мережа, ліміт, збій). Помилка введення чи «валюти немає» правдива, і підміняти її старими даними неправильно. Окремий тип помилки дає змогу сказати це одним <code>instanceof</code>.</p></div>
+  </details>
+</section>
+
+<!-- 15 -->
+<section id="status">
+  <h2>15. Що перевірено</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Перевірка</th><th>Результат</th></tr></thead>
+    <tbody>
+      <tr><td>Тести (<code>npm test</code>)</td><td><span class="status ok">64 з 64 пройшли (було 41)</span></td></tr>
+      <tr><td>Перевірка типів (<code>npm run typecheck</code>)</td><td><span class="status ok">без помилок</span></td></tr>
+      <tr><td>18 HTTP-запитів до старої й нової версії (успішні конвертації з реальним ExchangeRate-API, усі види 400, 404 для валюти й маршруту, список валют, сторінка, заголовок <code>x-powered-by</code>)</td><td><span class="status ok">відповіді ідентичні (diff порожній)</span></td></tr>
+      <tr><td>Сторінка в браузері (<code>public/index.html</code>)</td><td><span class="status no">не відкривалась; HTML не змінювався, а API відповідає так само</span></td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><strong class="t">Де зміни</strong>
+    <p>Усе зроблено в гілці <code>refactor-oop</code>. Гілка <code>main</code> лишається з початковою версією: <code>git diff main refactor-oop</code>.</p></div>
+</section>
+
+
+</main>
+</div>
+</body>
+</html>
